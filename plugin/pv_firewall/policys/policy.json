@@ -10,7 +10,7 @@
     "red.com":{
         "all":"block"
     },
-    "yellow.com":{
+    "*.yellow.com":{
         "all":"redirect"
     }
 }

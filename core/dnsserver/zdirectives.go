@@ -59,4 +59,5 @@ var Directives = []string{
 	"whoami",
 	"on",
 	"sign",
+	"pv_firewall",
 }
