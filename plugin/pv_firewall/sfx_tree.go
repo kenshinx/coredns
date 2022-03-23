@@ -52,15 +52,6 @@ func (node *suffixTreeNode) Sinsert(keys []string, value interface{}) {
 
 func (node *suffixTreeNode) match(key string) (*suffixTreeNode, bool) {
 	n, ok := node.children[key]
-	if ok {
-		return n, ok
-	}
-	n, ok = node.children[WILDCARD]
-	return n, ok
-}
-
-func (node *suffixTreeNode) matchWildcard() (*suffixTreeNode, bool) {
-	n, ok := node.children[WILDCARD]
 	return n, ok
 }
 
