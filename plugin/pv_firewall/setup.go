@@ -12,7 +12,7 @@ func init() { plugin.Register("pv_firewall", setup) }
 
 func parseConfig(c *caddy.Controller) (FirewallPolicy, error) {
 	c.Next() // directive name
-	p := FirewallPolicy{}
+	p := newFirewallPolicy()
 	uri := ""
 
 	if !c.Args(&uri) {

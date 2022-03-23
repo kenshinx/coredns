@@ -11,7 +11,8 @@ func TestSuffixTree(t *testing.T) {
 	tree.Sinsert(strings.Split("x.benign.net", "."), "allow")
 	tree.Sinsert(strings.Split("malicious.net", "."), "block")
 	tree.Sinsert(strings.Split("x.malicious.net", "."), "redirect")
-	tree.Sinsert(strings.Split("a.x.malicious.net", "."), "allow")
+	tree.Sinsert(strings.Split("t.x.malicious.net", "."), "block")
+	tree.Sinsert(strings.Split("t.x.malicious.net", "."), "allow")
 
 	testcases := []struct {
 		domain string
@@ -27,7 +28,7 @@ func TestSuffixTree(t *testing.T) {
 		{"x.malicious.net", true, "redirect"},
 		{"y.malicious.net", true, "block"},
 		{"z.x.malicious.net", true, "redirect"},
-		{"b.a.x.malicious.net", true, "allow"},
+		{"b.t.x.malicious.net", true, "allow"},
 	}
 
 	for i, tc := range testcases {

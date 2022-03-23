@@ -1,4 +1,4 @@
-"policy":{
+{
     "benign.net":{
         "all":"allow",
         "10.1.1.0/24":"block"
@@ -7,10 +7,13 @@
         "all":"block",
         "127.0.0.1":"allow"
     },
-    "red.com":{
+    "porn.com":{
+        "all":"redirect"
+    },
+    "video.porn.com": {
         "all":"block"
     },
-    "*.yellow.com":{
-        "all":"redirect"
+    "edu.video.porn.com": {
+        "all":"allow"
     }
 }
