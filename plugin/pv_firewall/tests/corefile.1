@@ -1,9 +1,8 @@
 .:53 {
-    
     pv_firewall http://127.0.0.1:8000/policys/policy.json
     
-    forward . /etc/resolv.conf
+    debug
     log
     errors
-    cache
+    forward . /etc/resolv.conf
 }

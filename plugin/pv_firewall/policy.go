@@ -43,6 +43,7 @@ func newTarget(target string) Target {
 		ttype = T_ALL
 	} else {
 		ttype = T_UNKOWN
+		log.Warningf("Rules contain invalid target: %s", target)
 	}
 	return Target{target, ttype}
 }
@@ -68,6 +69,7 @@ func (r *Rule) mapAction(action string) Action {
 		a = REDIRECT
 	default:
 		a = INVALIDACTION
+		log.Warningf("Rules contain invalid action: %s", action)
 	}
 	return a
 }
@@ -120,6 +122,7 @@ func parseFirewallPolicy(uri string, p *FirewallPolicy) error {
 		p.Policy.Sinsert(strings.Split(ioc, "."), r)
 
 	}
+	log.Infof("Fetch policy from %s, got [%d] rules", uri, len(payload))
 
 	return nil
 }
