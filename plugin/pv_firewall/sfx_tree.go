@@ -1,5 +1,7 @@
 package pv_firewall
 
+const WILDCARD string = "*"
+
 type suffixTreeNode struct {
 	key      string
 	value    interface{}
@@ -53,7 +55,12 @@ func (node *suffixTreeNode) match(key string) (*suffixTreeNode, bool) {
 	if ok {
 		return n, ok
 	}
-	n, ok = node.children["*"]
+	n, ok = node.children[WILDCARD]
+	return n, ok
+}
+
+func (node *suffixTreeNode) matchWildcard() (*suffixTreeNode, bool) {
+	n, ok := node.children[WILDCARD]
 	return n, ok
 }
 
