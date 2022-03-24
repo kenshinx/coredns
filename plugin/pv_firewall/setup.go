@@ -21,7 +21,7 @@ func parseConfig(c *caddy.Controller) (FirewallPolicy, error) {
 		return p, c.ArgErr()
 	}
 
-	if err := parseFirewallPolicy(uri, &p); err != nil {
+	if err := p.LoadPolicy(uri); err != nil {
 		return p, err
 	}
 

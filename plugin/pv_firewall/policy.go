@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 )
@@ -15,18 +16,48 @@ type Action int
 type TargetType int
 
 const (
-	ALLOW Action = iota
-	BLOCK
-	REDIRECT
-	INVALIDACTION
-)
-
-const (
 	T_IP TargetType = iota
 	T_NET
 	T_ALL
 	T_UNKOWN
 )
+
+const (
+	ALLOW Action = iota
+	BLOCK
+	REDIRECT
+	PASS
+	INVALIDACTION
+)
+
+var ActionStringMap = map[Action]string{
+	ALLOW:         "Allow",
+	BLOCK:         "Block",
+	REDIRECT:      "Redirect",
+	PASS:          "Pass",
+	INVALIDACTION: "Invalid Action",
+}
+
+func actionToString(action Action) string {
+	a, _ := ActionStringMap[action]
+	return a
+}
+
+func actionToInt(action string) Action {
+	var a Action
+	switch strings.ToLower(action) {
+	case "allow":
+		a = ALLOW
+	case "block":
+		a = BLOCK
+	case "redirect":
+		a = REDIRECT
+	default:
+		a = INVALIDACTION
+		log.Warningf("Rules contain invalid action: %s", action)
+	}
+	return a
+}
 
 type Target struct {
 	TValue string
@@ -55,23 +86,43 @@ type Rule struct {
 
 func (r *Rule) insert(target string, action string) {
 	t := newTarget(target)
-	r.Targets[t] = r.mapAction(action)
+	r.Targets[t] = actionToInt(action)
 }
 
-func (r *Rule) mapAction(action string) Action {
-	var a Action
-	switch strings.ToLower(action) {
-	case "allow":
-		a = ALLOW
-	case "block":
-		a = BLOCK
-	case "redirect":
-		a = REDIRECT
-	default:
-		a = INVALIDACTION
-		log.Warningf("Rules contain invalid action: %s", action)
+func (r *Rule) match(clientIP string) (action Action, found bool) {
+	cidrs := make(map[*net.IPNet]Action)
+	matchALL := false
+	defaultAction := PASS
+
+	//match IP firstly, net secondly,  and then match "all", if all missed, return PASS
+	for target, action := range r.Targets {
+		switch target.TType {
+		case T_IP:
+			if target.TValue == clientIP {
+				return action, true //match IP
+			}
+		case T_NET:
+			if _, cidr, err := net.ParseCIDR(target.TValue); err == nil {
+				cidrs[cidr] = action
+			}
+		case T_ALL:
+			matchALL = true
+			defaultAction = action // match ALL
+		case T_UNKOWN:
+		}
 	}
-	return a
+
+	for cidr, action := range cidrs {
+		if cidr.Contains(net.ParseIP(clientIP)) {
+			return action, true
+		}
+	}
+
+	if matchALL {
+		return defaultAction, true
+	}
+
+	return PASS, false
 }
 
 type FirewallPolicy struct {
@@ -86,22 +137,32 @@ func newFirewallPolicy() FirewallPolicy {
 	}
 }
 
-func parseFirewallPolicy(uri string, p *FirewallPolicy) error {
+func (p *FirewallPolicy) Match(clientIP string, qname string) (action Action, found bool) {
+	v, found := p.Policy.Search(strings.Split(qname, "."))
+	if !found {
+		return PASS, false
+	}
+	rule := v.(Rule)
+	// fmt.Printf("qname:%s, client:%s, matched ioc:%s, found:%t\n", qname, clientIP, rule.IoC, found)
+	return rule.match(clientIP)
+
+}
+
+func (p *FirewallPolicy) LoadPolicy(path string) error {
+	var err error
+	var body []byte
 	var payload map[string]map[string]string
 
-	if !isURL(uri) {
-		return fmt.Errorf("firewall policy must be assigned to a valid url")
-	}
-
-	resp, err := http.Get(uri)
-	if err != nil {
-		return fmt.Errorf("request policy failed:%s", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read policy failed:%s", err)
+	if isFile(path) {
+		if body, err = p.loadFromFile(path); err != nil {
+			return fmt.Errorf("load policy from file:%s failed, error:%s", path, err)
+		}
+	} else if isURL(path) {
+		if body, err = p.loadFromURL(path); err != nil {
+			return fmt.Errorf("load policy from uri:%s failed, error:%s", path, err)
+		}
+	} else {
+		return fmt.Errorf("policy must be assigned to a url or local file, current: %s", path)
 	}
 
 	err = json.Unmarshal(body, &payload)
@@ -109,8 +170,6 @@ func parseFirewallPolicy(uri string, p *FirewallPolicy) error {
 		return fmt.Errorf("json decode policy failed:%s", err)
 	}
 
-	p.mu.Lock()
-	defer p.mu.Unlock()
 	for ioc, rules := range payload {
 		r := Rule{
 			IoC:     ioc,
@@ -119,16 +178,45 @@ func parseFirewallPolicy(uri string, p *FirewallPolicy) error {
 		for target, action := range rules {
 			r.insert(target, action)
 		}
+		p.mu.Lock()
 		p.Policy.Sinsert(strings.Split(ioc, "."), r)
+		p.mu.Unlock()
 
 	}
-	log.Infof("Fetch policy from %s, got [%d] rules", uri, len(payload))
+	log.Infof("Fetch policy from %s, got [%d] rules", path, len(payload))
 
 	return nil
+
+}
+
+func (p *FirewallPolicy) loadFromURL(uri string) (body []byte, err error) {
+
+	resp, err := http.Get(uri)
+	if err != nil {
+		return nil, fmt.Errorf("request policy failed:%s", err)
+	}
+	defer resp.Body.Close()
+
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read policy failed:%s", err)
+	}
+
+	return body, nil
+}
+
+func (p *FirewallPolicy) loadFromFile(file string) (body []byte, err error) {
+	return os.ReadFile(file)
 }
 
 func isURL(s string) bool {
-	_, err := url.ParseRequestURI(s)
+	_, err := url.Parse(s)
+	return err == nil
+}
+
+func isFile(s string) bool {
+	file, err := os.Open(s)
+	defer file.Close()
 	return err == nil
 }
 
