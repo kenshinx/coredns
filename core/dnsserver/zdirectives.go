@@ -53,6 +53,7 @@ var Directives = []string{
 	"secondary",
 	"etcd",
 	"loop",
+	"pv_firewall",
 	"forward",
 	"grpc",
 	"erratic",

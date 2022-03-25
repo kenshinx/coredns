@@ -1,0 +1,19 @@
+{
+    "benign.net":{
+        "all":"allow",
+        "10.1.1.0/24":"block"
+    },
+    "malicious.net":{
+        "all":"block",
+        "127.0.0.1":"allow"
+    },
+    "porn.com":{
+        "all":"redirect"
+    },
+    "video.porn.com": {
+        "all":"block"
+    },
+    "edu.video.porn.com": {
+        "all":"allow"
+    }
+}
