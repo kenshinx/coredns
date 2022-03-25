@@ -35,7 +35,7 @@ func setup(c *caddy.Controller) error {
 		return plugin.Error("pv_firewall", err)
 	}
 
-	firewall := PVFirewall{Policy: policy}
+	firewall := &PVFirewall{Policy: policy}
 
 	dnsserver.GetConfig(c).AddPlugin(
 		func(next plugin.Handler) plugin.Handler {

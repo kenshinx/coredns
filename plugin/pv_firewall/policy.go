@@ -138,12 +138,13 @@ func newFirewallPolicy() FirewallPolicy {
 }
 
 func (p *FirewallPolicy) Match(clientIP string, qname string) (action Action, found bool) {
+	p.mu.RLock()
 	v, found := p.Policy.Search(strings.Split(qname, "."))
+	p.mu.RUnlock()
 	if !found {
 		return PASS, false
 	}
 	rule := v.(Rule)
-	// fmt.Printf("qname:%s, client:%s, matched ioc:%s, found:%t\n", qname, clientIP, rule.IoC, found)
 	return rule.match(clientIP)
 
 }
